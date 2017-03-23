@@ -77,11 +77,13 @@ type SYSDServer struct {
 	IptableAddCh             chan *sysd.IpTableAcl
 	IptableDelCh             chan *sysd.IpTableAcl
 	SystemParamConfig        chan objects.SystemParam
+        DpiRulesConfig           chan objects.DpiRules
 	KaRecvCh                 chan string
 	DaemonMap                map[string]*DaemonInfo
 	DaemonConfigCh           chan DaemonConfig
 	DaemonRestartCh          chan string
 	SysInfo                  *objects.SystemParam
+        DpiInfo                  *objects.DpiRules
 	SysUpdCh                 chan *SystemParamUpdate
 	DaemonStateDBCh          chan string
 }
@@ -99,6 +101,7 @@ func NewSYSDServer(logger *logging.Writer, dbHdl *dbutils.DBUtil, paramsDir stri
 	sysdServer.IptableAddCh = make(chan *sysd.IpTableAcl)
 	sysdServer.IptableDelCh = make(chan *sysd.IpTableAcl)
 	sysdServer.SystemParamConfig = make(chan objects.SystemParam)
+	sysdServer.DpiRulesConfig = make(chan objects.DpiRules)
 	sysdServer.SysUpdCh = make(chan *SystemParamUpdate)
 	return sysdServer
 }

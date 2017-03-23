@@ -39,6 +39,7 @@ type ClientJson struct {
 
 func getClient(logger *logging.Writer, fileName string, process string) (*ClientJson, error) {
 	var allClients []ClientJson
+        mylog("YORK, getClient, fileName=" + fileName+ ";process=" + process)
 
 	data, err := ioutil.ReadFile(fileName)
 	if err != nil {
@@ -58,6 +59,8 @@ func getClient(logger *logging.Writer, fileName string, process string) (*Client
 }
 
 func StartServer(logger *logging.Writer, handler *SYSDHandler, fileName string) {
+        mylog("YORK, StartServer, fileName=" + fileName)
+
 	clientJson, err := getClient(logger, fileName, "sysd")
 	if err != nil || clientJson == nil {
 		return

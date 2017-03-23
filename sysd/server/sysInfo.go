@@ -29,6 +29,8 @@ import (
 	"models/objects"
 	"os"
 	"os/exec"
+        "fmt"
+        "io/ioutil"
 	"strings"
 )
 
@@ -36,6 +38,55 @@ type SystemParamUpdate struct {
 	EntriesUpdated []string
 	NewCfg         *objects.SystemParam
 }
+type DpiRulesUpdate struct {
+        EntriesUpdated []string
+        NewCfg         *objects.DpiRules
+}
+
+func listAllFiles(path string) []string {
+
+    fileList := []string{}
+    files, err := ioutil.ReadDir(path)
+    if err != nil {
+       fmt.Println(err)
+    }
+    for _, file := range files {
+        fileList =append( fileList, file.Name())
+    }
+    return fileList
+}
+
+func listAllRules(filename string) [] string {
+   content, err := ioutil.ReadFile(filename)
+   if err != nil {
+      fmt.Println(err)
+      return nil
+   }
+   lines := strings.Split(string(content), "\n")
+   return lines
+
+}
+
+// During Get calls we will use below api to read from run-time information
+func (svr *SYSDServer) GetDpiRules(name string) *objects.DpiRulesState {
+        dpiRulesInfo := new(objects.DpiRulesState)
+        path := "/etc/snort/rules/"
+        files := listAllFiles(path)
+        numFiles := len(files)
+        ruleFiles := []objects.RuleFile{}
+
+        for i := 0; i < numFiles; i++ {
+           rules := listAllRules(path + files[i])
+           rulefile :=  new(objects.RuleFile)
+           rulefile.Rules = rules
+           rulefile.Path = path
+           rulefile.Name =  files[i]
+           //ruleFiles = append(ruleFiles,rulefile)
+        }
+        dpiRulesInfo.RuleFiles = ruleFiles 
+        return dpiRulesInfo
+}
+  
 
 func (svr *SYSDServer) ReadSystemInfoFromDB() error {
 	svr.logger.Info("Reading System Information From Db")

@@ -29,6 +29,8 @@ import (
 	"models/objects"
 	"strings"
 	"sysd"
+	"os"
+	"fmt"
 	"utils/logging"
 )
 
@@ -39,6 +41,24 @@ const (
 type SYSDHandler struct {
 	server *server.SYSDServer
 	logger *logging.Writer
+}
+
+
+func mylog(text string) error {
+      path := "/tmp/confd.log"
+      f, err :=  os.OpenFile(path, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660);
+      if err != nil {
+         fmt.Fprintln(os.Stderr, err)
+         return err
+      }
+      defer f.Close()
+
+      _, err = f.WriteString(text + "\n")
+      if err != nil {
+          fmt.Print(os.Stderr,err)
+          return err
+      }
+      return nil
 }
 
 func NewSYSDHandler(logger *logging.Writer, server *server.SYSDServer) *SYSDHandler {
@@ -146,6 +166,8 @@ func (h *SYSDHandler) GetBulkDaemonState(fromIdx sysd.Int, count sysd.Int) (*sys
 }
 
 func convertSystemParamThriftToModel(cfg *sysd.SystemParam) objects.SystemParam {
+        mylog("YORK, convertSystemParamThriftToModel, Hostname=" + cfg.Hostname)
+        mylog("YORK, convertSystemParamThriftToModel, SwVersion=" + cfg.SwVersion)
 	confg := objects.SystemParam{
 		Description: cfg.Description,
 		SwVersion:   cfg.SwVersion,
@@ -157,7 +179,29 @@ func convertSystemParamThriftToModel(cfg *sysd.SystemParam) objects.SystemParam 
 	return confg
 }
 
+/*
+func convertDpiRulesThriftToModel(cfg *sysd.DpiRules) objects.DpiRules {
+  confg := objects.DpiRules{
+    Description: cfg.Description,
+    RuleFiles:   cfg.RuleFiles
+  }
+  return confg
+}
+*/
+
+func (h *SYSDHandler) CreateDpiRules(cfg *sysd.DpiRules) (bool, error) {
+        if h.server.SystemInfoCreated() {
+                return false, errors.New("DprRules Info is already created for Default VRF, please do update to modify rules")
+        }
+        mylog("YORK, CreateDpiRules,")
+        h.logger.Info("Configuring Global Object", cfg)
+        //confg := convertDpiRulesThriftToModel(cfg)
+        //h.server.DpiRulesConfig <- confg
+        return true, nil
+}
+
 func (h *SYSDHandler) CreateSystemParam(cfg *sysd.SystemParam) (bool, error) {
+        mylog("YORK, CreateSystemParam")
 	if h.server.SystemInfoCreated() {
 		return false, errors.New("System Params Info is already created for Default VRF, please do update to modify params")
 	}
@@ -171,7 +215,15 @@ func (h *SYSDHandler) CreateSystemParam(cfg *sysd.SystemParam) (bool, error) {
 	return true, nil
 }
 
+func (h *SYSDHandler) validatUpdateDpiRules(newCfg *sysd.DpiRules, attrset []bool) ([]string, error) {
+         mylog("YORK, validatUpdateDpiRules")
+        var updatedInfo []string
+        return updatedInfo, nil
+}
+ 
 func (h *SYSDHandler) validatUpdateSystemParam(newCfg *sysd.SystemParam, attrset []bool) ([]string, error) {
+        mylog("YORK, validatUpdateSystemParam")
+
 	var updatedInfo []string
 	/*
 		0 : string Vrf
@@ -207,8 +259,18 @@ func (h *SYSDHandler) validatUpdateSystemParam(newCfg *sysd.SystemParam, attrset
 	return updatedInfo, nil
 }
 
+func (h *SYSDHandler) UpdateDpiRules(org *sysd.DpiRules, new *sysd.DpiRules, attrset []bool,
+         op []*sysd.PatchOpInfo) (bool, error) {
+         h.logger.Info("Received update for DPI information", org, new, attrset)
+         if org == nil || new == nil {
+            return false, errors.New("Invalid information provided to server")
+         }
+         return true, nil
+}
+
 func (h *SYSDHandler) UpdateSystemParam(org *sysd.SystemParam, new *sysd.SystemParam, attrset []bool,
 	op []*sysd.PatchOpInfo) (bool, error) {
+        mylog("YORK,UpdateSystemParam")
 	h.logger.Info("Received update for system param information", org, new, attrset)
 	if org == nil || new == nil {
 		return false, errors.New("Invalid information provided to server")
@@ -229,10 +291,18 @@ func (h *SYSDHandler) UpdateSystemParam(org *sysd.SystemParam, new *sysd.SystemP
 }
 
 func (h *SYSDHandler) DeleteSystemParam(cfg *sysd.SystemParam) (bool, error) {
+        mylog("YORK, DeleteSystemParam")
 	return false, errors.New("Delete of system params for default vrf is not supported")
 }
 
+func (h *SYSDHandler) DeleteDpiRules(cfg *sysd.DpiRules) (bool, error) {
+        mylog("YORK, DeleteDpiRules")
+        return false, errors.New("Delete of dpi rules is not supported")
+}
+
+
 func convertSystemParamStateToThrift(info objects.SystemParamState, entry *sysd.SystemParamState) {
+         mylog("YORK, convertSystemParamStateToThrift , entry.Hostname=" +  entry.Hostname)
 	entry.Vrf = string(info.Vrf)
 	entry.SwitchMac = string(info.SwitchMac)
 	entry.MgmtIp = string(info.MgmtIp)
@@ -245,6 +315,7 @@ func convertSystemParamStateToThrift(info objects.SystemParamState, entry *sysd.
 
 func (h *SYSDHandler) GetSystemParamState(name string) (*sysd.SystemParamState, error) {
 	h.logger.Info("Get system params info for " + name)
+         mylog("YORK, GetSystemParamState ,name=" + name)
 	sysParamsResp := sysd.NewSystemParamState()
 	sysInfo := h.server.GetSystemParam(name)
 	if sysInfo == nil {
@@ -255,7 +326,29 @@ func (h *SYSDHandler) GetSystemParamState(name string) (*sysd.SystemParamState, 
 	return sysParamsResp, nil
 }
 
+/*
+func (h *SYSDHandler) GetBulkDpiRulesState(fromIdx sysd.Int, count sysd.Int) (*sysd.DpiRulesStateGetInfo, error) {
+  //@TODO: when we support vrf change get bulk... today only one system info is present
+  dpiRulesResp, err := h.GetDpiRulesState("default")
+  if err != nil {
+    return nil, err
+  }
+  systemGetInfoResp := sysd.NewDpiRulesStateGetInfo()
+  systemGetInfoResp.Count = 1
+  systemGetInfoResp.StartIdx = 0
+  systemGetInfoResp.EndIdx = 1
+  systemGetInfoResp.More = false
+  respList := make([]*sysd.DpiRulesState, 1)
+  //respList = append(respList, sysParamsResp)
+  respList[0] = dpiRulesResp
+  systemGetInfoResp.SystemParamStateList = respList
+  return systemGetInfoResp, nil
+}
+*/
+
 func (h *SYSDHandler) GetBulkSystemParamState(fromIdx sysd.Int, count sysd.Int) (*sysd.SystemParamStateGetInfo, error) {
+
+        mylog("YORK, GetBulkSystemParamState, ")
 	//@TODO: when we support vrf change get bulk... today only one system info is present
 	sysParamsResp, err := h.GetSystemParamState("default")
 	if err != nil {
